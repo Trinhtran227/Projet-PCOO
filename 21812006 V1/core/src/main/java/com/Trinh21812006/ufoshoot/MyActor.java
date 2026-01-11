@@ -3,40 +3,25 @@ package com.Trinh21812006.ufoshoot;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.Batch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.Rectangle;
-import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 
-public class MyActor extends Actor {
-    TextureRegion textureRegion;
-    private float speed;
+// KẾ THỪA TỪ GameEntity
+public class MyActor extends GameEntity {
     private float fireRate;
     private float fireTimer = 0;
     private Texture bulletTexture;
-    private Rectangle bounds;
     private Sound shootSound;
 
     public MyActor(float x, float y, float speed, float fireRate, Stage s) {
-        textureRegion = new TextureRegion(new Texture("images/playerShip3_red.png"));
-        bulletTexture = new Texture("images/laserBlue01.png");
-        this.speed = speed;
+        // Gọi constructor cha: nạp ảnh Player và thiết lập speed
+        super(x, y, speed, new Texture("images/playerShip3_red.png"));
+
         this.fireRate = fireRate;
-        setPosition(x, y);
-        s.addActor(this);
-        setSize(textureRegion.getRegionWidth(), textureRegion.getRegionHeight());
-        setOrigin(getWidth()/2, getHeight()/2);
-        shootSound = Gdx.audio.newSound(Gdx.files.internal("sounds/sfx_laser1.ogg"));
+        this.bulletTexture = new Texture("images/laserBlue01.png");
+        this.shootSound = Gdx.audio.newSound(Gdx.files.internal("sounds/sfx_laser1.ogg"));
 
-        float hbW = getWidth() * 0.6f;
-        float hbH = getHeight() * 0.6f;
-        this.bounds = new Rectangle(x + (getWidth()-hbW)/2, y + (getHeight()-hbH)/2, hbW, hbH);
-    }
-
-    @Override
-    public void draw(Batch batch, float parentAlpha) {
-        batch.draw(textureRegion, getX(), getY(), getOriginX(), getOriginY(), getWidth(), getHeight(), 1, 1, getRotation());
+        s.addActor(this); // Thêm chính mình vào stage
     }
 
     @Override
@@ -44,19 +29,17 @@ public class MyActor extends Actor {
         super.act(delta);
         fireTimer += delta;
 
-        // Giới hạn biên màn hình (Logic View)
+        // Giới hạn biên màn hình
         if (getX() < 0) setX(0);
         else if (getX() + getWidth() > 1280) setX(1280 - getWidth());
         if (getY() < 0) setY(0);
         else if (getY() + getHeight() > 1024) setY(1024 - getHeight());
 
-        // Cập nhật hitbox
-        float hbW = getWidth() * 0.6f;
-        float hbH = getHeight() * 0.6f;
-        bounds.set(getX() + (getWidth()-hbW)/2, getY() + (getHeight()-hbH)/2, hbW, hbH);
+        // Cập nhật hitbox (60% kích thước tàu)
+        updateBounds(0.6f);
     }
 
-    // --- CÁC HÀM HÀNH ĐỘNG (Controller sẽ gọi các hàm này) ---
+    // --- CÁC HÀM HÀNH ĐỘNG CHO CONTROLLER GỌI ---
 
     public void rotateLeft(float delta) {
         setRotation(getRotation() + 200f * delta);
@@ -67,25 +50,26 @@ public class MyActor extends Actor {
     }
 
     public void moveForward(float delta) {
-        // Cộng 90 độ vì ảnh gốc mũi tàu hướng lên trên
-        float angleRad = (float) Math.toRadians(getRotation() + 90);
-        setX(getX() + (float) Math.cos(angleRad) * speed * delta);
-        setY(getY() + (float) Math.sin(angleRad) * speed * delta);
+        float angleRad = MathUtils.degreesToRadians * (getRotation() + 90);
+        setX(getX() + MathUtils.cos(angleRad) * speed * delta);
+        setY(getY() + MathUtils.sin(angleRad) * speed * delta);
     }
 
     public void moveBackward(float delta) {
-        float angleRad = (float) Math.toRadians(getRotation() + 90);
-        // Trừ đi để đi lùi
-        setX(getX() - (float) Math.cos(angleRad) * speed * delta);
-        setY(getY() - (float) Math.sin(angleRad) * speed * delta);
+        float angleRad = MathUtils.degreesToRadians * (getRotation() + 90);
+        setX(getX() - MathUtils.cos(angleRad) * speed * delta);
+        setY(getY() - MathUtils.sin(angleRad) * speed * delta);
     }
 
     public void shoot() {
         if (fireTimer >= fireRate) {
+            // Tính toán vị trí xuất phát của đạn
             float centerX = getX() + getWidth() / 2;
             float centerY = getY() + getHeight() / 2;
             float bulletX = centerX - (bulletTexture.getWidth() / 2f);
             float bulletY = centerY - (bulletTexture.getHeight() / 2f);
+
+            // Tạo đạn
             Bullet b = new Bullet(bulletX, bulletY, getRotation(), bulletTexture);
             getStage().addActor(b);
 
@@ -94,11 +78,11 @@ public class MyActor extends Actor {
         }
     }
 
-    public Rectangle getBounds() { return bounds; }
-
     @Override
     public boolean remove() {
         if (shootSound != null) shootSound.dispose();
+        // Không dispose texture ở đây nếu dùng chung (Resource Manager),
+        // nhưng hiện tại bạn đang new Texture nên để hệ thống tự quản lý GC hoặc dispose ở MainGame
         return super.remove();
     }
 }

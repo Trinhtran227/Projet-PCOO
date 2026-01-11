@@ -137,7 +137,7 @@ public class GameMapManager implements Disposable {
                     float ry = bossSpawnArea.y + (float) (Math.random() * bossSpawnArea.height);
                     Enemy boss = new Enemy(rx, ry, bossSpeed, bossHealth, bossTxt, this.player);
                     boss.setBoss(true);
-                    boss.setScale(2.0f);
+                    boss.setScale(1.15f);
                     stage.addActor(boss);
                     bossesCreated++;
                     bossTimer = 0;

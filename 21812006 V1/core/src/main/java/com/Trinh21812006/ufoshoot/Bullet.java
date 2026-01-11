@@ -1,74 +1,46 @@
 package com.Trinh21812006.ufoshoot;
 
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.Batch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.Rectangle;
-import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.math.MathUtils;
 
-public class Bullet extends Actor {
-    private TextureRegion textureRegion;
-    private float speed = 500f; // Tốc độ đạn bay
-    private float vx, vy; // Vận tốc theo trục X và Y
-    private Rectangle bounds;
+// KẾ THỪA TỪ GameEntity
+public class Bullet extends GameEntity {
+    private float vx, vy;
 
     public Bullet(float x, float y, float rotation, Texture texture) {
-        this.textureRegion = new TextureRegion(texture);
+        // Gọi constructor lớp cha (x, y, speed=500f, texture)
+        // Tốc độ 500f lấy từ file Bullet cũ
+        super(x, y, 500f, texture);
 
-        // Đặt viên đạn ở mũi tàu
-        setPosition(x, y);
         setRotation(rotation);
-        setSize(textureRegion.getRegionWidth(), textureRegion.getRegionHeight());
-        setOrigin(getWidth() / 2, getHeight() / 2);
 
-        // SỬ DỤNG LẠI CÔNG THỨC LƯỢNG GIÁC:
-        // Đạn bay theo hướng tàu đang chỉ (+90 độ để khớp mũi tàu)
-        float angleRad = (float) Math.toRadians(rotation + 90);
-        vx = (float) Math.cos(angleRad) * speed;
-        vy = (float) Math.sin(angleRad) * speed;
-
-        this.bounds = new com.badlogic.gdx.math.Rectangle(x, y, getWidth(), getHeight());
+        // Tính toán hướng bay dựa trên góc quay (Logic cũ giữ nguyên)
+        float angleRad = MathUtils.degreesToRadians * (rotation + 90);
+        this.vx = MathUtils.cos(angleRad) * speed;
+        this.vy = MathUtils.sin(angleRad) * speed;
     }
 
     @Override
     public void act(float delta) {
-        super.act(delta);
+        super.act(delta); // Để cha xử lý các logic cơ bản nếu có
+
+        // Cập nhật vị trí
         setX(getX() + vx * delta);
         setY(getY() + vy * delta);
 
-        // KIỂM TRA BIÊN CHÍNH XÁC
-        // 1. Biên trái: Toàn bộ chiều rộng đạn đã ra khỏi x=0
-        if (getStage() != null) { // Kiểm tra an toàn để tránh lỗi Null
-            float stageWidth = getStage().getWidth();
-            float stageHeight = getStage().getHeight();
-
-            // 1. Biên trái
-            if (getX() + getWidth() < 0) {
-                this.remove();
-            }
-            // 2. Biên phải: Thay 1280 bằng stageWidth
-            else if (getX() > stageWidth) {
-                this.remove();
-            }
-            // 3. Biên dưới
-            else if (getY() + getHeight() < 0) {
-                this.remove();
-            }
-            // 4. Biên trên: Thay 1024 bằng stageHeight
-            else if (getY() > stageHeight) {
-                this.remove();
+        // Kiểm tra ra khỏi màn hình thì xóa (Logic cũ)
+        if (getStage() != null) {
+            float sw = getStage().getWidth();
+            float sh = getStage().getHeight();
+            if (getX() < 0 || getX() > sw || getY() < 0 || getY() > sh) {
+                remove();
             }
         }
-        bounds.setPosition(getX(), getY());
+
+        // Cập nhật hitbox (100% kích thước đạn)
+        updateBounds(1.0f);
     }
 
-    public com.badlogic.gdx.math.Rectangle getBounds() {
-        return bounds;
-    }
-
-    @Override
-    public void draw(Batch batch, float parentAlpha) {
-        batch.draw(textureRegion, getX(), getY(), getOriginX(), getOriginY(),
-            getWidth(), getHeight(), 1, 1, getRotation());
-    }
+    // Không cần hàm draw()
+    // Không cần hàm getBounds()
 }

@@ -44,6 +44,7 @@ public class CollisionController {
                     if (enemy.getHealth() <= 0) {
                         // Cộng điểm vào Model
                         model.addScore(enemy.isBoss() ? 100 : 10);
+
                     }
                     break;
                 }

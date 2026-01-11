@@ -8,14 +8,20 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 
+// Explosion nên kế thừa Actor vì nó không cần logic vật lý của GameEntity
 public class Explosion extends Actor {
     private Animation<TextureRegion> animation;
     private float stateTime = 0;
 
-    public Explosion(float x, float y, float width, float height) {
-        // Sử dụng đúng tên file bạn đã gửi
-        Texture sheet = new Texture(Gdx.files.internal("images/explosion.jpg"));
+    // Nếu bạn muốn tối ưu, hãy đưa texture này sang ResourceManager,
+    // nhưng để code chạy ngay, tôi sẽ giữ loading trực tiếp ở đây.
+    private Texture sheet;
 
+    public Explosion(float x, float y, float width, float height) {
+        // Đảm bảo đường dẫn ảnh đúng
+        sheet = new Texture(Gdx.files.internal("images/explosion.jpg"));
+
+        // Cấu hình lưới 4x5 theo ảnh của bạn
         int FRAME_COLS = 4;
         int FRAME_ROWS = 5;
 
@@ -27,12 +33,10 @@ public class Explosion extends Actor {
 
         for (int i = 0; i < FRAME_ROWS; i++) {
             for (int j = 0; j < FRAME_COLS; j++) {
-                // KỸ THUẬT QUAN TRỌNG: Thụt lùi vào 1 pixel ở mọi cạnh để xóa viền trắng
+                // Kỹ thuật xóa viền trắng: +1 và -2
                 frames[index++] = new TextureRegion(sheet,
-                    j * tileWidth + 1,
-                    i * tileHeight + 1,
-                    tileWidth - 2,
-                    tileHeight - 2);
+                    j * tileWidth + 1, i * tileHeight + 1,
+                    tileWidth - 2, tileHeight - 2);
             }
         }
 
@@ -45,21 +49,25 @@ public class Explosion extends Actor {
     public void act(float delta) {
         super.act(delta);
         stateTime += delta;
+        // Khi chạy hết hoạt ảnh thì tự xóa mình khỏi sân khấu
         if (animation.isAnimationFinished(stateTime)) {
             this.remove();
+            // Giải phóng bộ nhớ ảnh khi nổ xong (Quan trọng nếu không dùng ResourceManager)
+            if (sheet != null) sheet.dispose();
         }
     }
 
     @Override
     public void draw(Batch batch, float parentAlpha) {
+        // Lấy khung hình tương ứng với thời gian hiện tại
         TextureRegion currentFrame = animation.getKeyFrame(stateTime);
 
-        // BẬT CHẾ ĐỘ TRỘN MÀU (Làm biến mất màu đen/trắng caro, giữ lại màu lửa rực rỡ)
+        // Chế độ hòa trộn màu (Blend Mode) giúp lửa trông sáng rực và xóa nền đen
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
 
         batch.draw(currentFrame, getX(), getY(), getWidth(), getHeight());
 
-        // Trả lại chế độ trộn mặc định để các hình ảnh khác không bị lỗi hiển thị
+        // Trả về chế độ mặc định để không ảnh hưởng các vật thể khác
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
     }
 }
