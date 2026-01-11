@@ -11,10 +11,10 @@ public class Explosion extends Actor {
     private Animation<TextureRegion> animation;
     private float stateTime = 0;
 
-    // Không giữ biến Texture sheet riêng nữa
+    // Ne plus garder de référence locale à la feuille de texture pour économiser la mémoire
 
     public Explosion(float x, float y, float width, float height) {
-        // Lấy Texture nổ đã nạp sẵn từ Manager
+        // Récupérer la texture d'explosion préchargée depuis le Manager
         Texture sheet = ResourceManager.getInstance().getTexture(Constants.IMG_EXPLOSION);
 
         int FRAME_COLS = 4;
@@ -41,18 +41,23 @@ public class Explosion extends Actor {
     public void act(float delta) {
         super.act(delta);
         stateTime += delta;
+        // Supprimer l'acteur de la scène une fois l'animation terminée
         if (animation.isAnimationFinished(stateTime)) {
             this.remove();
-            // Không dispose texture ở đây!
+            // Ne pas libérer (dispose) la texture ici car elle est gérée par le ResourceManager !
         }
     }
 
     @Override
     public void draw(Batch batch, float parentAlpha) {
         TextureRegion currentFrame = animation.getKeyFrame(stateTime);
+
+        // Mode de fusion (Blending) pour un effet lumineux
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+
         batch.draw(currentFrame, getX(), getY(), getWidth(), getHeight());
-        // Đây là phần bạn bị thiếu: Trả lại chế độ blend mặc định
+
+        // Restaurer le mode de fusion par défaut
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
     }
 }

@@ -11,6 +11,9 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
 public class MainGame extends ApplicationAdapter {
@@ -18,7 +21,7 @@ public class MainGame extends ApplicationAdapter {
     private GameMapManager mapManager;
     private Stage stage;
 
-    // CÁC THÀNH PHẦN MVC
+    // Composants MVC
     private GameModel gameModel;
     private PlayerController playerController;
     private CollisionController collisionController;
@@ -27,26 +30,21 @@ public class MainGame extends ApplicationAdapter {
     private float shakeIntensity = 0;
     private BitmapFont font;
     private SpriteBatch batch;
-
-    // Biến âm thanh nổ
     private Sound playerExplodeSound;
-
     private float gameOverTimer = 0;
 
     @Override
     public void create() {
+        // Chargement centralisé des ressources (Singleton)
         ResourceManager.getInstance().loadAll();
 
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 1280, 1024);
         stage = new Stage(new FitViewport(1280, 1024, camera));
 
-        // Nạp âm thanh nổ
-        // Đảm bảo file assets/sounds/explosion.mp3 tồn tại
-        playerExplodeSound = Gdx.audio.newSound(Gdx.files.internal("sounds/explosion.mp3"));
+        playerExplodeSound = ResourceManager.getInstance().getSound(Constants.SOUND_EXPLOSION);
 
         gameModel = new GameModel();
-
         mapManager = new GameMapManager();
         mapManager.loadMap("maps/level1.tmx");
         mapManager.setupPlayer(stage);
@@ -60,6 +58,38 @@ public class MainGame extends ApplicationAdapter {
         font = new BitmapFont();
         font.getData().setScale(3f);
         batch = new SpriteBatch();
+
+        createTutorial();
+    }
+
+    private void createTutorial() {
+        Label.LabelStyle labelStyle = new Label.LabelStyle(font, Color.GREEN);
+        Label.LabelStyle titleStyle = new Label.LabelStyle(font, Color.YELLOW);
+
+        Table table = new Table();
+        table.setFillParent(true);
+        table.center();
+
+        Label titleLabel = new Label("SURVIVE UFO", titleStyle);
+        titleLabel.setFontScale(2.5f);
+
+        Label moveLabel = new Label("MOVE & ROTATE: [Arrow Keys]", labelStyle);
+        Label shootLabel = new Label("SHOOT: [SPACE]", labelStyle);
+
+        table.add(titleLabel).padBottom(60).row();
+        table.add(moveLabel).padBottom(20).row();
+        table.add(shootLabel).row();
+
+        // Animation : Apparaître, attendre, disparaître, se supprimer
+        table.addAction(Actions.sequence(
+            Actions.alpha(0),
+            Actions.fadeIn(1f),
+            Actions.delay(3f),
+            Actions.fadeOut(2f),
+            Actions.removeActor()
+        ));
+
+        stage.addActor(table);
     }
 
     @Override
@@ -68,7 +98,8 @@ public class MainGame extends ApplicationAdapter {
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        if (!gameModel.isGameOver()) {
+        // La logique du jeu ne tourne que si le jeu n'est pas terminé (Game Over) ET qu'il n'est pas gagné
+        if (!gameModel.isGameOver() && !gameModel.isVictory()) {
             stage.act(delta);
             playerController.update(delta);
 
@@ -76,6 +107,11 @@ public class MainGame extends ApplicationAdapter {
                 mapManager.update(delta, stage);
                 mapManager.checkAndSpawnBoss(delta, stage);
                 collisionController.update(stage, delta);
+
+                // Vérifier la condition de victoire
+                if (mapManager.isMissionCompleted(stage)) {
+                    gameModel.setVictory(true);
+                }
             } else {
                 gameOverTimer -= delta;
                 if (gameOverTimer <= 0) {
@@ -85,10 +121,8 @@ public class MainGame extends ApplicationAdapter {
         }
 
         updateCameraShake(delta);
-
         mapManager.render(camera);
         stage.draw();
-
         renderUI();
     }
 
@@ -106,36 +140,46 @@ public class MainGame extends ApplicationAdapter {
     private void renderUI() {
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
+
         font.setColor(Color.WHITE);
         font.draw(batch, "SCORE: " + gameModel.getScore(), 50, 980);
 
+        // Cas : GAME OVER
         if (gameModel.isGameOver()) {
             font.setColor(Color.RED);
             font.draw(batch, "GAME OVER", 500, 600);
+
             font.setColor(Color.WHITE);
             font.getData().setScale(2f);
             font.draw(batch, "Press R to Restart", 520, 500);
             font.getData().setScale(3f);
-
-            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
-                restartGame();
-            }
         }
+
+        // Cas : VICTOIRE
+        if (gameModel.isVictory()) {
+            font.setColor(Color.GREEN);
+            font.draw(batch, "YOU WIN!", 540, 600);
+
+            font.setColor(Color.WHITE);
+            font.getData().setScale(2f);
+            font.draw(batch, "Press R to Play Again", 500, 500);
+            font.getData().setScale(3f);
+        }
+
+        if ((gameModel.isGameOver() || gameModel.isVictory()) && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+            restartGame();
+        }
+
         batch.end();
     }
 
-    // --- SỬA LỖI TẠI ĐÂY ---
     public void triggerShake() {
-        // Đã xóa dòng if (!gameModel.isCollisionOccurred()) vì Controller đã set True rồi
-
         this.shakeIntensity = 25f;
         this.shakeTimer = 0.5f;
         this.gameOverTimer = 1.5f;
 
-        // Phát âm thanh
         if (playerExplodeSound != null) {
             playerExplodeSound.play(1.0f);
-            System.out.println("BOOM! Sound played."); // Dòng debug để kiểm tra
         }
     }
 
@@ -143,10 +187,11 @@ public class MainGame extends ApplicationAdapter {
         gameModel.reset();
         gameOverTimer = 0;
         stage.clear();
-
         mapManager.reset();
         mapManager.setupPlayer(stage);
         playerController.setPlayer(mapManager.getPlayer());
+
+        createTutorial(); // Afficher à nouveau le tutoriel
 
         camera.position.set(640, 512, 0);
         camera.update();
@@ -158,7 +203,6 @@ public class MainGame extends ApplicationAdapter {
         font.dispose();
         mapManager.dispose();
         stage.dispose();
-        if (playerExplodeSound != null) playerExplodeSound.dispose();
-        ResourceManager.getInstance().dispose(); // Giải phóng bộ nhớ khi tắt
+        ResourceManager.getInstance().dispose();
     }
 }

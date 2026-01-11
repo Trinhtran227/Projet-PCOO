@@ -42,9 +42,8 @@ public class CollisionController {
                     enemy.takeDamage(1);
                     bullet.remove();
                     if (enemy.getHealth() <= 0) {
-                        // Cộng điểm vào Model
+                        // Ajouter des points au modèle
                         model.addScore(enemy.isBoss() ? 100 : 10);
-
                     }
                     break;
                 }
@@ -60,9 +59,9 @@ public class CollisionController {
             player.setVisible(false);
             enemy.setVisible(false);
 
-            // Cập nhật trạng thái vào Model
+            // Mettre à jour l'état de collision dans le modèle
             model.setCollisionOccurred(true);
-            game.triggerShake(); // Báo MainGame rung màn hình
+            game.triggerShake(); // Signaler à MainGame de faire trembler l'écran
         }
     }
 }

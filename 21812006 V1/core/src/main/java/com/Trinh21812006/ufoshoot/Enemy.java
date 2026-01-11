@@ -15,7 +15,7 @@ public class Enemy extends GameEntity {
     private Actor player;
     private boolean isBoss = false;
 
-    // Logic di chuyển
+    // Logique de déplacement
     private float zigzagTimer = 0;
     private boolean isHoming = false;
     private int directionX = 1;
@@ -25,7 +25,7 @@ public class Enemy extends GameEntity {
     private float randomAmplitude;
 
     private static Sound explosionSound;
-    private static Texture healthBarTexture;
+    private static Texture healthBarTexture; // Texture statique pour économiser la mémoire
 
     public Enemy(float x, float y, float speed, int health, Texture texture, Actor player) {
         super(x, y, speed, texture);
@@ -33,6 +33,7 @@ public class Enemy extends GameEntity {
         this.maxHealth = health;
         this.player = player;
 
+        // Initialiser le son (chargé une seule fois via Gdx ou Manager)
         if (explosionSound == null) {
             explosionSound = Gdx.audio.newSound(Gdx.files.internal("sounds/explosion.mp3"));
         }
@@ -54,6 +55,7 @@ public class Enemy extends GameEntity {
         super.act(delta);
         zigzagTimer += delta;
 
+        // IA : Poursuite ou Zigzag
         float distance = (float) Math.sqrt(Math.pow(getX() - player.getX(), 2) + Math.pow(getY() - player.getY(), 2));
         if (distance < 600f) isHoming = true;
 
@@ -69,11 +71,12 @@ public class Enemy extends GameEntity {
             setX(getX() + vx * delta);
         }
 
+        // Rebondir sur les bords de l'écran
         if (getX() <= 0) { setX(10); directionX = 1; zigzagTimer = 0; }
-        else if (getX() + getWidth() >= 1280) { setX(1280 - getWidth() - 10); directionX = -1; zigzagTimer = 0; }
+        else if (getX() + getWidth() >= 1280) { setX(1280 - getWidth() - 10); directionX = -2; zigzagTimer = 0; }
 
         if (getY() <= 0) { setY(10); directionY = 1; }
-        else if (getY() + getHeight() >= 1024) { setY(1024 - getHeight() - 10); directionY = -1; }
+        else if (getY() + getHeight() >= 1024) { setY(1024 - getHeight() - 10); directionY = -2; }
 
         updateBounds(0.7f);
     }
@@ -81,15 +84,23 @@ public class Enemy extends GameEntity {
     @Override
     public void draw(Batch batch, float parentAlpha) {
         super.draw(batch, parentAlpha);
+
+        // Dessiner la barre de vie si c'est un Boss
         if (isBoss) {
             float barWidth = getWidth();
             float barHeight = 10;
             float barY = getY() + getHeight() + 5;
+
+            // Fond rouge
             batch.setColor(Color.RED);
             batch.draw(healthBarTexture, getX(), barY, barWidth, barHeight);
+
+            // Barre verte (santé actuelle)
             float currentPercent = Math.max(0, (float) health / (float) maxHealth);
             batch.setColor(Color.GREEN);
             batch.draw(healthBarTexture, getX(), barY, barWidth * currentPercent, barHeight);
+
+            // Restaurer la couleur blanche
             batch.setColor(Color.WHITE);
         }
     }
@@ -99,7 +110,7 @@ public class Enemy extends GameEntity {
         if (health <= 0) {
             if (explosionSound != null) explosionSound.play(0.7f);
 
-            // SỬA LỖI: Thêm hiệu ứng nổ TRƯỚC khi remove
+            // CORRECTION : Ajouter l'effet d'explosion AVANT de supprimer l'entité
             if (getStage() != null) {
                 Explosion exp = new Explosion(getX(), getY(), getWidth(), getHeight());
                 getStage().addActor(exp);

@@ -10,7 +10,7 @@ public class PlayerController {
         this.player = player;
     }
 
-    // Cập nhật player mới khi reset game
+    // Mettre à jour le joueur lors de la réinitialisation du jeu
     public void setPlayer(MyActor player) {
         this.player = player;
     }
@@ -18,7 +18,7 @@ public class PlayerController {
     public void update(float delta) {
         if (player == null) return;
 
-        // Xử lý Input: Gọi lệnh sang MyActor
+        // Gestion des entrées (Input) : Déléguer les commandes à MyActor
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
             player.rotateLeft(delta);
         }

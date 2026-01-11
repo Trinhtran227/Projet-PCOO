@@ -6,31 +6,32 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.utils.Disposable;
 
 public class ResourceManager implements Disposable {
+    // Singleton : Assure qu'il n'y a qu'un seul gestionnaire de ressources dans le jeu
     private static ResourceManager instance;
     public final AssetManager manager = new AssetManager();
 
     public static ResourceManager getInstance() {
-        if (instance == null) instance = new ResourceManager();
+        if (instance == null) {
+            instance = new ResourceManager();
+        }
         return instance;
     }
 
+    // Charger toutes les ressources en mémoire
     public void loadAll() {
-        // Nạp Player & Đạn
         manager.load(Constants.IMG_PLAYER, Texture.class);
         manager.load(Constants.IMG_BULLET, Texture.class);
         manager.load(Constants.IMG_EXPLOSION, Texture.class);
-
-        // Nạp Địch (Thêm mới)
         manager.load(Constants.IMG_UFO_RED, Texture.class);
         manager.load(Constants.IMG_UFO_BLUE, Texture.class);
 
-        // Nạp Âm thanh
         manager.load(Constants.SOUND_SHOOT, Sound.class);
         manager.load(Constants.SOUND_EXPLOSION, Sound.class);
 
-        manager.finishLoading();
+        manager.finishLoading(); // Attendre la fin du chargement avant de commencer le jeu
     }
 
+    // Méthodes pour récupérer les ressources
     public Texture getTexture(String fileName) {
         return manager.get(fileName, Texture.class);
     }
