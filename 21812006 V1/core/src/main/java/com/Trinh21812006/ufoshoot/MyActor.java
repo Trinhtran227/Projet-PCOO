@@ -1,7 +1,6 @@
 package com.Trinh21812006.ufoshoot;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
@@ -16,10 +15,10 @@ public class MyActor extends Actor {
     private float fireRate;
     private float fireTimer = 0;
     private Texture bulletTexture;
-    private Rectangle bounds; // Khai báo khung va chạm
-    private Sound shootSound; // Biến lưu âm thanh bắn
+    private Rectangle bounds;
+    private Sound shootSound;
 
-    MyActor(float x, float y, float speed, float fireRate, Stage s) {
+    public MyActor(float x, float y, float speed, float fireRate, Stage s) {
         textureRegion = new TextureRegion(new Texture("images/playerShip3_red.png"));
         bulletTexture = new Texture("images/laserBlue01.png");
         this.speed = speed;
@@ -30,7 +29,6 @@ public class MyActor extends Actor {
         setOrigin(getWidth()/2, getHeight()/2);
         shootSound = Gdx.audio.newSound(Gdx.files.internal("sounds/sfx_laser1.ogg"));
 
-        // Khởi tạo hitbox nhỏ (60%) nằm giữa tàu
         float hbW = getWidth() * 0.6f;
         float hbH = getHeight() * 0.6f;
         this.bounds = new Rectangle(x + (getWidth()-hbW)/2, y + (getHeight()-hbH)/2, hbW, hbH);
@@ -46,49 +44,53 @@ public class MyActor extends Actor {
         super.act(delta);
         fireTimer += delta;
 
-        float rotateSpeed = 200f;
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            setRotation(getRotation() + rotateSpeed * delta);
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            setRotation(getRotation() - rotateSpeed * delta);
-        }
-
-        if (Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
-            float direction = Gdx.input.isKeyPressed(Input.Keys.UP) ? 1 : -1;
-            float angleRad = (float) Math.toRadians(getRotation() + 90);
-            setX(getX() + (float) Math.cos(angleRad) * speed * direction * delta);
-            setY(getY() + (float) Math.sin(angleRad) * speed * direction * delta);
-        }
-
-        // Giới hạn biên màn hình
+        // Giới hạn biên màn hình (Logic View)
         if (getX() < 0) setX(0);
         else if (getX() + getWidth() > 1280) setX(1280 - getWidth());
         if (getY() < 0) setY(0);
         else if (getY() + getHeight() > 1024) setY(1024 - getHeight());
 
-        if (Gdx.input.isKeyPressed(Input.Keys.SPACE) && fireTimer >= fireRate) {
-            shoot();
-            fireTimer = 0;
-        }
-
-        // Cập nhật hitbox luôn đi theo tâm tàu
+        // Cập nhật hitbox
         float hbW = getWidth() * 0.6f;
         float hbH = getHeight() * 0.6f;
         bounds.set(getX() + (getWidth()-hbW)/2, getY() + (getHeight()-hbH)/2, hbW, hbH);
     }
 
-    private void shoot() {
-        float centerX = getX() + getWidth() / 2;
-        float centerY = getY() + getHeight() / 2;
-        float bulletX = centerX - (bulletTexture.getWidth() / 2f);
-        float bulletY = centerY - (bulletTexture.getHeight() / 2f);
-        Bullet b = new Bullet(bulletX, bulletY, getRotation(), bulletTexture);
-        getStage().addActor(b);
+    // --- CÁC HÀM HÀNH ĐỘNG (Controller sẽ gọi các hàm này) ---
 
-        // Phát âm thanh bắn
-        if (shootSound != null) {
-            shootSound.play(0.5f); // Âm lượng 50%
+    public void rotateLeft(float delta) {
+        setRotation(getRotation() + 200f * delta);
+    }
+
+    public void rotateRight(float delta) {
+        setRotation(getRotation() - 200f * delta);
+    }
+
+    public void moveForward(float delta) {
+        // Cộng 90 độ vì ảnh gốc mũi tàu hướng lên trên
+        float angleRad = (float) Math.toRadians(getRotation() + 90);
+        setX(getX() + (float) Math.cos(angleRad) * speed * delta);
+        setY(getY() + (float) Math.sin(angleRad) * speed * delta);
+    }
+
+    public void moveBackward(float delta) {
+        float angleRad = (float) Math.toRadians(getRotation() + 90);
+        // Trừ đi để đi lùi
+        setX(getX() - (float) Math.cos(angleRad) * speed * delta);
+        setY(getY() - (float) Math.sin(angleRad) * speed * delta);
+    }
+
+    public void shoot() {
+        if (fireTimer >= fireRate) {
+            float centerX = getX() + getWidth() / 2;
+            float centerY = getY() + getHeight() / 2;
+            float bulletX = centerX - (bulletTexture.getWidth() / 2f);
+            float bulletY = centerY - (bulletTexture.getHeight() / 2f);
+            Bullet b = new Bullet(bulletX, bulletY, getRotation(), bulletTexture);
+            getStage().addActor(b);
+
+            if (shootSound != null) shootSound.play(0.5f);
+            fireTimer = 0;
         }
     }
 
@@ -96,9 +98,7 @@ public class MyActor extends Actor {
 
     @Override
     public boolean remove() {
-        if (shootSound != null) {
-            shootSound.dispose();
-        }
+        if (shootSound != null) shootSound.dispose();
         return super.remove();
     }
 }

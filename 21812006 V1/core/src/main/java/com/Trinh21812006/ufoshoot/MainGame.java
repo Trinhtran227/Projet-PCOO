@@ -3,13 +3,13 @@ package com.Trinh21812006.ufoshoot;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
@@ -17,17 +17,21 @@ public class MainGame extends ApplicationAdapter {
     private OrthographicCamera camera;
     private GameMapManager mapManager;
     private Stage stage;
-    private MyActor player;
+
+    // CÁC THÀNH PHẦN MVC
+    private GameModel gameModel;
+    private PlayerController playerController;
+    private CollisionController collisionController;
 
     private float shakeTimer = 0;
     private float shakeIntensity = 0;
     private BitmapFont font;
-    private int score = 0;
-    private boolean isGameOver = false;
     private SpriteBatch batch;
-    // Trong MainGame.java, thêm biến mới:
+
+    // Biến âm thanh nổ
+    private Sound playerExplodeSound;
+
     private float gameOverTimer = 0;
-    private boolean collisionOccurred = false; // Đánh dấu đã va chạm
 
     @Override
     public void create() {
@@ -35,13 +39,22 @@ public class MainGame extends ApplicationAdapter {
         camera.setToOrtho(false, 1280, 1024);
         stage = new Stage(new FitViewport(1280, 1024, camera));
 
+        // Nạp âm thanh nổ
+        // Đảm bảo file assets/sounds/explosion.mp3 tồn tại
+        playerExplodeSound = Gdx.audio.newSound(Gdx.files.internal("sounds/explosion.mp3"));
+
+        gameModel = new GameModel();
+
         mapManager = new GameMapManager();
         mapManager.loadMap("maps/level1.tmx");
         mapManager.setupPlayer(stage);
         mapManager.loadEnemyWaves();
 
-        Gdx.input.setInputProcessor(stage);
+        MyActor player = mapManager.getPlayer();
+        playerController = new PlayerController(player);
+        collisionController = new CollisionController(this, gameModel);
 
+        Gdx.input.setInputProcessor(stage);
         font = new BitmapFont();
         font.getData().setScale(3f);
         batch = new SpriteBatch();
@@ -53,25 +66,31 @@ public class MainGame extends ApplicationAdapter {
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        if (!isGameOver) {
-            stage.act(delta); // Hiệu ứng nổ cần act() để chạy animation
+        if (!gameModel.isGameOver()) {
+            stage.act(delta);
+            playerController.update(delta);
 
-            if (!collisionOccurred) {
+            if (!gameModel.isCollisionOccurred()) {
                 mapManager.update(delta, stage);
                 mapManager.checkAndSpawnBoss(delta, stage);
-                checkCollisions();
+                collisionController.update(stage, delta);
             } else {
-                // Nếu đã va chạm, đếm ngược thời gian
                 gameOverTimer -= delta;
                 if (gameOverTimer <= 0) {
-                    isGameOver = true;
-                    // Sau khi nổ xong mới thực sự remove player
-                    if (player != null) player.remove();
+                    gameModel.setGameOver(true);
                 }
             }
         }
 
-        // Xử lý Rung Camera
+        updateCameraShake(delta);
+
+        mapManager.render(camera);
+        stage.draw();
+
+        renderUI();
+    }
+
+    private void updateCameraShake(float delta) {
         if (shakeTimer > 0) {
             camera.position.x = 640 + MathUtils.random(-shakeIntensity, shakeIntensity);
             camera.position.y = 512 + MathUtils.random(-shakeIntensity, shakeIntensity);
@@ -80,20 +99,21 @@ public class MainGame extends ApplicationAdapter {
             camera.position.set(640, 512, 0);
         }
         camera.update();
+    }
 
-        mapManager.render(camera);
-        stage.draw();
-
-        // Vẽ UI
+    private void renderUI() {
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
-        font.draw(batch, "SCORE: " + score, 50, 980);
+        font.setColor(Color.WHITE);
+        font.draw(batch, "SCORE: " + gameModel.getScore(), 50, 980);
 
-        if (isGameOver) {
+        if (gameModel.isGameOver()) {
             font.setColor(Color.RED);
             font.draw(batch, "GAME OVER", 500, 600);
             font.setColor(Color.WHITE);
-            font.draw(batch, "Press R to Restart", 480, 500);
+            font.getData().setScale(2f);
+            font.draw(batch, "Press R to Restart", 520, 500);
+            font.getData().setScale(3f);
 
             if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
                 restartGame();
@@ -102,78 +122,32 @@ public class MainGame extends ApplicationAdapter {
         batch.end();
     }
 
-    private void checkCollisions() {
-        if (collisionOccurred) return; // Nếu đã va chạm rồi thì không xét nữa
+    // --- SỬA LỖI TẠI ĐÂY ---
+    public void triggerShake() {
+        // Đã xóa dòng if (!gameModel.isCollisionOccurred()) vì Controller đã set True rồi
 
+        this.shakeIntensity = 25f;
+        this.shakeTimer = 0.5f;
+        this.gameOverTimer = 1.5f;
 
-        MyActor playerActor = null;
-        for (Actor a : stage.getActors()) {
-            if (a instanceof MyActor) playerActor = (MyActor) a;
+        // Phát âm thanh
+        if (playerExplodeSound != null) {
+            playerExplodeSound.play(1.0f);
+            System.out.println("BOOM! Sound played."); // Dòng debug để kiểm tra
         }
-
-        for (int i = 0; i < stage.getActors().size; i++) {
-            Actor a = stage.getActors().get(i);
-
-            if (a instanceof Enemy) {
-                Enemy enemy = (Enemy) a;
-                if (playerActor != null && playerActor.getBounds().overlaps(enemy.getBounds())) {
-                    stage.addActor(new Explosion(playerActor.getX(), playerActor.getY(), 100, 100));
-                    stage.addActor(new Explosion(enemy.getX(), enemy.getY(), 100, 100));
-                    shake(20f, 0.5f);
-
-                    playerActor.setVisible(false);
-                    enemy.setVisible(false);
-
-                    collisionOccurred = true;
-                    gameOverTimer = 1.0f; // Chờ 1.5 giây mới hiện Game Over
-
-                    System.out.println("Va chạm đã xảy ra, đang chờ nổ...");
-                }
-            }
-
-            if (a instanceof Bullet) {
-                Bullet bullet = (Bullet) a;
-                for (Actor other : stage.getActors()) {
-                    if (other instanceof Enemy) {
-                        Enemy e = (Enemy) other;
-                        if (bullet.getBounds().overlaps(e.getBounds())) {
-                            e.takeDamage(1);
-                            bullet.remove();
-                            if (e.getHealth() <= 0) score += (e.isBoss() ? 100 : 10);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    public void shake(float intensity, float duration) {
-        this.shakeIntensity = intensity;
-        this.shakeTimer = duration;
     }
 
     private void restartGame() {
-        // 1. Reset các biến trạng thái
-        score = 0;
-        isGameOver = false;
-        collisionOccurred = false; // QUAN TRỌNG: Phải reset biến này
+        gameModel.reset();
         gameOverTimer = 0;
-
-        // 2. Dọn dẹp Stage (xóa hết quái, đạn, vụ nổ cũ)
         stage.clear();
 
-        // 3. Reset MapManager (đặt lại đếm quái, đếm Boss về 0)
         mapManager.reset();
-
-        // 4. Tạo lại người chơi mới
         mapManager.setupPlayer(stage);
+        playerController.setPlayer(mapManager.getPlayer());
 
-        // 5. Đặt lại Camera về vị trí chuẩn (phòng trường hợp đang rung)
         camera.position.set(640, 512, 0);
         camera.update();
-
-        System.out.println("Game đã khởi động lại!");
     }
 
     @Override
@@ -182,5 +156,6 @@ public class MainGame extends ApplicationAdapter {
         font.dispose();
         mapManager.dispose();
         stage.dispose();
+        if (playerExplodeSound != null) playerExplodeSound.dispose();
     }
 }
