@@ -28,7 +28,7 @@ public class GameMapManager implements Disposable {
     private int totalUfos;
     private float spawnTimer = 0;
     private int currentSpawned = 0;
-    private Texture enemyTexture;
+    private Texture enemyTexture; // Lưu tham chiếu texture (không dispose trực tiếp)
     private int enemyHealth;
 
     // Biến Boss
@@ -75,7 +75,6 @@ public class GameMapManager implements Disposable {
         }
     }
 
-    // HÀM QUAN TRỌNG ĐỂ MAIN GAME LẤY PLAYER
     public MyActor getPlayer() {
         return this.player;
     }
@@ -91,7 +90,14 @@ public class GameMapManager implements Disposable {
             this.enemyTextureName = props.get("TextureName", "ufoRed", String.class);
             this.totalUfos = props.get("ufoCount", 5, Integer.class);
             this.enemyHealth = props.get("health", 1, Integer.class);
-            this.enemyTexture = new Texture("images/" + enemyTextureName + ".png");
+
+            // TỐI ƯU HÓA: Lấy từ ResourceManager thay vì new Texture
+            // Logic: Kiểm tra tên từ TiledMap để lấy đúng ảnh trong Manager
+            if ("ufoRed".equals(enemyTextureName)) {
+                this.enemyTexture = ResourceManager.getInstance().getTexture(Constants.IMG_UFO_RED);
+            } else {
+                this.enemyTexture = ResourceManager.getInstance().getTexture(Constants.IMG_UFO_BLUE);
+            }
         }
 
         // Nạp Boss
@@ -114,6 +120,8 @@ public class GameMapManager implements Disposable {
         if (spawnTimer >= spawnInterval) {
             float randomX = spawnArea.x + (float) (Math.random() * spawnArea.width);
             float randomY = spawnArea.y + spawnArea.height;
+
+            // Sử dụng texture đã lấy từ Manager, không tạo mới
             Enemy enemy = new Enemy(randomX, randomY, enemySpeed, enemyHealth, enemyTexture, this.player);
             stage.addActor(enemy);
             spawnTimer = 0;
@@ -132,12 +140,21 @@ public class GameMapManager implements Disposable {
             if (!enemyAlive) {
                 bossTimer += delta;
                 if (bossTimer >= bossSpawnInterval) {
-                    Texture bossTxt = new Texture("images/" + bossTextureName + ".png");
+                    // TỐI ƯU HÓA: Lấy Texture từ Manager cho Boss
+                    Texture bossTxt;
+                    if ("ufoBlue".equals(bossTextureName)) {
+                        bossTxt = ResourceManager.getInstance().getTexture(Constants.IMG_UFO_BLUE);
+                    } else {
+                        bossTxt = ResourceManager.getInstance().getTexture(Constants.IMG_UFO_RED);
+                    }
+
                     float rx = bossSpawnArea.x + (float) (Math.random() * (bossSpawnArea.width - 100));
                     float ry = bossSpawnArea.y + (float) (Math.random() * bossSpawnArea.height);
+
                     Enemy boss = new Enemy(rx, ry, bossSpeed, bossHealth, bossTxt, this.player);
                     boss.setBoss(true);
-                    boss.setScale(1.15f);
+                    boss.setScale(1.5f); // Kích thước Boss
+
                     stage.addActor(boss);
                     bossesCreated++;
                     bossTimer = 0;
@@ -157,6 +174,6 @@ public class GameMapManager implements Disposable {
     public void dispose() {
         if (map != null) map.dispose();
         if (renderer != null) renderer.dispose();
-        if (enemyTexture != null) enemyTexture.dispose();
+        // Không dispose enemyTexture ở đây vì ResourceManager đã quản lý việc đó
     }
 }

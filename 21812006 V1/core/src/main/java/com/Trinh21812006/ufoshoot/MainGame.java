@@ -35,6 +35,8 @@ public class MainGame extends ApplicationAdapter {
 
     @Override
     public void create() {
+        ResourceManager.getInstance().loadAll();
+
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 1280, 1024);
         stage = new Stage(new FitViewport(1280, 1024, camera));
@@ -157,5 +159,6 @@ public class MainGame extends ApplicationAdapter {
         mapManager.dispose();
         stage.dispose();
         if (playerExplodeSound != null) playerExplodeSound.dispose();
+        ResourceManager.getInstance().dispose(); // Giải phóng bộ nhớ khi tắt
     }
 }
